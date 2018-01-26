@@ -21,7 +21,8 @@ class BurpExtender(IBurpExtender, IExtensionStateListener, IHttpListener, ITab):
 
         self._code = compile('', '<string>', 'exec')
         self._script = ''
-
+        self._locals = {}
+        
         script = callbacks.loadExtensionSetting('script')
 
         if script:
@@ -56,14 +57,15 @@ class BurpExtender(IBurpExtender, IExtensionStateListener, IHttpListener, ITab):
     def processHttpMessage(self, toolFlag, messageIsRequest, messageInfo):
         try:
             globals_ = {}
-            locals_  = {'extender': self,
-                        'callbacks': self.callbacks,
-                        'helpers': self.helpers,
-                        'toolFlag': toolFlag,
-                        'messageIsRequest': messageIsRequest,
-                        'messageInfo': messageInfo
-                        }
-            exec(self.script, globals_, locals_)
+            self._locals['extender'] = self
+            self._locals['callbacks'] = self.callbacks
+            self._locals['helpers'] = self.helpers
+            self._locals['toolFlag'] = toolFlag
+            self._locals['messageIsRequest'] = messageIsRequest
+            self._locals['messageInfo'] = messageInfo
+            
+            exec(self.script, globals_, self._locals)
+
         except Exception:
             traceback.print_exc(file=self.callbacks.getStderr())
         return
@@ -83,5 +85,6 @@ class BurpExtender(IBurpExtender, IExtensionStateListener, IHttpListener, ITab):
             return self._code
 
         self._script = _script
+        self._locals = {}
         self._code = compile(_script, '<string>', 'exec')
         return self._code
